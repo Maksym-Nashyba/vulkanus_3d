@@ -33,4 +33,37 @@ impl Model {
             buffer:vertex_buffer
         }
     }
+
+    pub fn star(memory_allocator: &StandardMemoryAllocator) -> Model{
+        let vertices = vec![
+            Vertex {
+                position: [-0.75, 1.0, 0.5],
+            },
+            Vertex {
+                position: [0.0, -1.0, 0.5],
+            },
+            Vertex {
+                position: [0.4, 0.0, 0.5],
+            },
+            Vertex {
+                position: [-1.0, -0.5, 0.5],
+            },
+            Vertex {
+                position: [0.2, -0.5, 0.5],
+            },
+            Vertex {
+                position: [0.75, 1.0, 0.5],
+            },
+            Vertex {
+                position: [0.2, -0.5, 0.5],
+            },
+            Vertex {
+                position: [1.0, -0.5, 0.5],
+            },
+            Vertex {
+                position: [0.4, 0.0, 0.5],
+            },
+        ];
+        return Self::load(memory_allocator, vertices);
+    }
 }
