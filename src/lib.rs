@@ -1,7 +1,7 @@
 use winit::event_loop::EventLoop;
 use crate::renderer::Renderer;
 
-mod renderer;
+pub mod renderer;
 mod transform;
 mod material;
 
