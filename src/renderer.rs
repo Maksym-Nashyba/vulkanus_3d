@@ -1,6 +1,6 @@
 pub(crate) mod shader_loader;
-pub(crate) mod model;
-pub(crate) mod draw_call;
+pub mod draw_call;
+pub mod model;
 
 use std::sync::Arc;
 
