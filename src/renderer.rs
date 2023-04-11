@@ -35,9 +35,8 @@ use vulkano::command_buffer::PrimaryAutoCommandBuffer;
 use vulkano::device::Queue;
 use vulkano::shader::ShaderModule;
 use vulkano::swapchain::{Surface, SwapchainAcquireFuture};
-use vulkano_win::VkSurfaceBuild;
+use vulkano_win::{create_surface_from_winit, VkSurfaceBuild};
 use winit::{
-    event_loop::EventLoop,
     window::{Window, WindowBuilder},
 };
 use crate::renderer::draw_call::DrawCall;
@@ -63,7 +62,7 @@ struct SwapchainContainer{
     pub optimal: bool
 }
 
-pub fn initialize_renderer(event_loop:&EventLoop<()>) -> Renderer
+pub fn initialize_renderer(window: Arc<Window>) -> Renderer
 {
     let library = VulkanLibrary::new().unwrap();
     let required_extensions = vulkano_win::required_extensions(&library);
@@ -77,9 +76,7 @@ pub fn initialize_renderer(event_loop:&EventLoop<()>) -> Renderer
         },
     ).unwrap();
 
-    let surface = WindowBuilder::new()
-        .build_vk_surface(event_loop, instance.clone())
-        .unwrap();
+    let surface = create_surface_from_winit(window, instance.clone()).unwrap();
 
     let device_extensions = DeviceExtensions {
         khr_swapchain: true,
