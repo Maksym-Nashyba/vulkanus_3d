@@ -1,15 +1,10 @@
 use std::sync::Arc;
 use vulkano::device::Device;
 use vulkano::shader::{ShaderCreationError, ShaderModule};
+use crate::renderer::ShaderType;
 
 pub struct ShaderContainer{
     shaders: Vec<LoadedShader>
-}
-
-#[derive(PartialEq, Eq, Clone)]
-pub enum ShaderType{
-    Vertex,
-    Fragment
 }
 
 #[derive(Clone)]

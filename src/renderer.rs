@@ -62,6 +62,13 @@ struct SwapchainContainer{
     pub optimal: bool
 }
 
+#[derive(PartialEq, Eq, Clone)]
+pub enum ShaderType{
+    Vertex,
+    Fragment
+}
+
+
 impl Renderer{
     pub fn new(window: Arc<Window>) -> Self {
         let library = VulkanLibrary::new().unwrap();
