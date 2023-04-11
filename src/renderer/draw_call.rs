@@ -1,9 +1,9 @@
+use nalgebra_glm::Mat4x4;
 use crate::material::Material;
 use crate::renderer::model::Model;
-use crate::transform::Transform;
 
 pub struct DrawCall{
-    pub transform:Transform,
+    pub transform:Mat4x4,
     pub model:Model,
     pub material:Material
 }

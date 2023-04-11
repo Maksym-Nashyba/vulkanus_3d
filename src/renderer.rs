@@ -35,10 +35,8 @@ use vulkano::command_buffer::PrimaryAutoCommandBuffer;
 use vulkano::device::Queue;
 use vulkano::shader::ShaderModule;
 use vulkano::swapchain::{Surface, SwapchainAcquireFuture};
-use vulkano_win::{create_surface_from_winit, VkSurfaceBuild};
-use winit::{
-    window::{Window, WindowBuilder},
-};
+use vulkano_win::create_surface_from_winit;
+use winit::window::Window;
 use crate::renderer::draw_call::DrawCall;
 use crate::renderer::model::Vertex;
 use crate::renderer::shader_loader::ShaderContainer;
