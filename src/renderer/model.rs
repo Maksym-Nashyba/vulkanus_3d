@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
 use vulkano::impl_vertex;
-use vulkano::memory::allocator::StandardMemoryAllocator;
 use bytemuck::{Pod, Zeroable};
+use crate::renderer::Renderer;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, Zeroable, Pod)]
@@ -18,9 +18,9 @@ pub struct Model{
 }
 
 impl Model {
-    pub fn load(memory_allocator: &StandardMemoryAllocator, vertices:Vec<Vertex>) -> Model{
+    pub fn load(renderer: &Renderer, vertices:Vec<Vertex>) -> Model{
         let vertex_buffer: Arc<CpuAccessibleBuffer<[Vertex]>> = CpuAccessibleBuffer::from_iter(
-            memory_allocator,
+            &renderer.allocator,
             BufferUsage {
                 vertex_buffer: true,
                 ..BufferUsage::empty()
@@ -34,7 +34,7 @@ impl Model {
         }
     }
 
-    pub fn star(memory_allocator: &StandardMemoryAllocator) -> Model{
+    pub fn star(renderer: &Renderer) -> Model{
         let vertices = vec![
             Vertex {
                 position: [-0.75, 1.0, 0.5],
@@ -64,6 +64,6 @@ impl Model {
                 position: [0.4, 0.0, 0.5],
             },
         ];
-        return Self::load(memory_allocator, vertices);
+        return Self::load(renderer, vertices);
     }
 }

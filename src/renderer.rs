@@ -33,6 +33,7 @@ use vulkano::{
 };
 use vulkano::command_buffer::PrimaryAutoCommandBuffer;
 use vulkano::device::Queue;
+use vulkano::memory::allocator::StandardMemoryAllocator;
 use vulkano::shader::ShaderModule;
 use vulkano::swapchain::{Surface, SwapchainAcquireFuture};
 use vulkano_win::create_surface_from_winit;
@@ -44,6 +45,7 @@ use crate::renderer::shader_loader::ShaderContainer;
 pub struct Renderer{
     pub device: Arc<Device>,
     pub shader_container: ShaderContainer,
+    pub(crate) allocator:StandardMemoryAllocator,
     render_surface: Arc<Surface>,
     swapchain_container: SwapchainContainer,
     render_pass: Arc<RenderPass>,
@@ -60,105 +62,105 @@ struct SwapchainContainer{
     pub optimal: bool
 }
 
-pub fn initialize_renderer(window: Arc<Window>) -> Renderer
-{
-    let library = VulkanLibrary::new().unwrap();
-    let required_extensions = vulkano_win::required_extensions(&library);
+impl Renderer{
+    pub fn new(window: Arc<Window>) -> Self {
+        let library = VulkanLibrary::new().unwrap();
+        let required_extensions = vulkano_win::required_extensions(&library);
 
-    let instance = Instance::new(
-        library,
-        InstanceCreateInfo {
-            enabled_extensions: required_extensions,
-            enumerate_portability: true,
-            ..Default::default()
-        },
-    ).unwrap();
-
-    let surface = create_surface_from_winit(window, instance.clone()).unwrap();
-
-    let device_extensions = DeviceExtensions {
-        khr_swapchain: true,
-        ..DeviceExtensions::empty()
-    };
-
-    let (physical_device, queue_family_index) = instance
-        .enumerate_physical_devices().unwrap()
-        .filter(|p| {
-            p.supported_extensions().contains(&device_extensions)
-        })
-        .filter_map(|p| {
-            p.queue_family_properties()
-                .iter()
-                .enumerate()
-                .position(|(i, q)| {
-                    q.queue_flags.graphics && p.surface_support(i as u32, &surface).unwrap_or(false)
-                })
-                .map(|i| (p, i as u32))
-        })
-        .min_by_key(|(p, _)| {
-            match p.properties().device_type {
-                PhysicalDeviceType::DiscreteGpu => 0,
-                PhysicalDeviceType::IntegratedGpu => 1,
-                PhysicalDeviceType::VirtualGpu => 2,
-                PhysicalDeviceType::Cpu => 3,
-                PhysicalDeviceType::Other => 4,
-                _ => 5,
-            }
-        }).expect("No suitable physical device found");
-
-    let (device, mut queues) = Device::new(
-        physical_device,
-        DeviceCreateInfo {
-            enabled_extensions: device_extensions,
-            queue_create_infos: vec![QueueCreateInfo {
-                queue_family_index,
-                ..Default::default()
-            }],
-            ..Default::default()
-        },
-    ).unwrap();
-
-    let queue: Arc<Queue> = queues.next().unwrap();
-
-    let (swapchain, images) = {
-        let surface_capabilities = device
-            .physical_device()
-            .surface_capabilities(&surface, Default::default())
-            .unwrap();
-
-        let image_format = Some(
-            device
-                .physical_device()
-                .surface_formats(&surface, Default::default())
-                .unwrap()[0].0,
-        );
-
-        let window = surface.object().unwrap().downcast_ref::<Window>().unwrap();
-
-        Swapchain::new(
-            device.clone(),
-            surface.clone(),
-            SwapchainCreateInfo {
-                min_image_count: surface_capabilities.min_image_count,
-                image_format: image_format,
-                image_extent: window.inner_size().into(),
-                image_usage: ImageUsage {
-                    color_attachment: true,
-                    ..ImageUsage::empty()
-                },
-                composite_alpha: surface_capabilities
-                    .supported_composite_alpha
-                    .iter()
-                    .next()
-                    .unwrap(),
+        let instance = Instance::new(
+            library,
+            InstanceCreateInfo {
+                enabled_extensions: required_extensions,
+                enumerate_portability: true,
                 ..Default::default()
             },
-        ).unwrap()
-    };
+        ).unwrap();
 
-    let shader_container: ShaderContainer = ShaderContainer::load(device.clone()).unwrap();
+        let surface = create_surface_from_winit(window, instance.clone()).unwrap();
 
-    let render_pass: Arc<RenderPass> = vulkano::single_pass_renderpass!(
+        let device_extensions = DeviceExtensions {
+            khr_swapchain: true,
+            ..DeviceExtensions::empty()
+        };
+
+        let (physical_device, queue_family_index) = instance
+            .enumerate_physical_devices().unwrap()
+            .filter(|p| {
+                p.supported_extensions().contains(&device_extensions)
+            })
+            .filter_map(|p| {
+                p.queue_family_properties()
+                    .iter()
+                    .enumerate()
+                    .position(|(i, q)| {
+                        q.queue_flags.graphics && p.surface_support(i as u32, &surface).unwrap_or(false)
+                    })
+                    .map(|i| (p, i as u32))
+            })
+            .min_by_key(|(p, _)| {
+                match p.properties().device_type {
+                    PhysicalDeviceType::DiscreteGpu => 0,
+                    PhysicalDeviceType::IntegratedGpu => 1,
+                    PhysicalDeviceType::VirtualGpu => 2,
+                    PhysicalDeviceType::Cpu => 3,
+                    PhysicalDeviceType::Other => 4,
+                    _ => 5,
+                }
+            }).expect("No suitable physical device found");
+
+        let (device, mut queues) = Device::new(
+            physical_device,
+            DeviceCreateInfo {
+                enabled_extensions: device_extensions,
+                queue_create_infos: vec![QueueCreateInfo {
+                    queue_family_index,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            },
+        ).unwrap();
+
+        let queue: Arc<Queue> = queues.next().unwrap();
+
+        let (swapchain, images) = {
+            let surface_capabilities = device
+                .physical_device()
+                .surface_capabilities(&surface, Default::default())
+                .unwrap();
+
+            let image_format = Some(
+                device
+                    .physical_device()
+                    .surface_formats(&surface, Default::default())
+                    .unwrap()[0].0,
+            );
+
+            let window = surface.object().unwrap().downcast_ref::<Window>().unwrap();
+
+            Swapchain::new(
+                device.clone(),
+                surface.clone(),
+                SwapchainCreateInfo {
+                    min_image_count: surface_capabilities.min_image_count,
+                    image_format: image_format,
+                    image_extent: window.inner_size().into(),
+                    image_usage: ImageUsage {
+                        color_attachment: true,
+                        ..ImageUsage::empty()
+                    },
+                    composite_alpha: surface_capabilities
+                        .supported_composite_alpha
+                        .iter()
+                        .next()
+                        .unwrap(),
+                    ..Default::default()
+                },
+            ).unwrap()
+        };
+
+        let shader_container: ShaderContainer = ShaderContainer::load(device.clone()).unwrap();
+
+        let render_pass: Arc<RenderPass> = vulkano::single_pass_renderpass!(
     device.clone(),
     attachments: {
         color: {
@@ -173,41 +175,41 @@ pub fn initialize_renderer(window: Arc<Window>) -> Renderer
         depth_stencil: {}
     }).unwrap();
 
-    let swapchain_container: SwapchainContainer =
-        SwapchainContainer{
-        swapchain: swapchain.clone(),
-        images: images.clone(),
-        optimal: true
-    };
+        let swapchain_container: SwapchainContainer =
+            SwapchainContainer{
+                swapchain: swapchain.clone(),
+                images: images.clone(),
+                optimal: true
+            };
 
-    let mut viewport = Viewport {
-        origin: [0.0, 0.0],
-        dimensions: [0.0, 0.0],
-        depth_range: 0.0..1.0,
-    };
+        let mut viewport = Viewport {
+            origin: [0.0, 0.0],
+            dimensions: [0.0, 0.0],
+            depth_range: 0.0..1.0,
+        };
 
-    let framebuffers: Vec<Arc<Framebuffer>> = window_size_dependent_setup(&swapchain_container.images, render_pass.clone(), &mut viewport);
+        let framebuffers: Vec<Arc<Framebuffer>> = window_size_dependent_setup(&swapchain_container.images, render_pass.clone(), &mut viewport);
 
-    let command_buffer_allocator =
-        StandardCommandBufferAllocator::new(device.clone(), Default::default());
+        let command_buffer_allocator =
+            StandardCommandBufferAllocator::new(device.clone(), Default::default());
 
-    let previous_frame_end = Some(sync::now(device.clone()).boxed());
+        let previous_frame_end = Some(sync::now(device.clone()).boxed());
 
-    return Renderer{
-        device: device.clone(),
-        shader_container: shader_container,
-        render_surface: surface.clone(),
-        swapchain_container: swapchain_container,
-        render_pass: render_pass.clone(),
-        queue: queue.clone(),
-        viewport: viewport,
-        framebuffers: framebuffers,
-        command_buffer_allocator: command_buffer_allocator,
-        previous_frame_end: previous_frame_end
+        return Self{
+            device: device.clone(),
+            shader_container: shader_container,
+            render_surface: surface.clone(),
+            swapchain_container: swapchain_container,
+            render_pass: render_pass.clone(),
+            queue: queue.clone(),
+            viewport: viewport,
+            framebuffers: framebuffers,
+            allocator:StandardMemoryAllocator::new_default(device.clone()),
+            command_buffer_allocator: command_buffer_allocator,
+            previous_frame_end: previous_frame_end
+        }
     }
-}
 
-impl Renderer{
     pub fn on_resized(&mut self) {
         self.swapchain_container.optimal = false;
     }
