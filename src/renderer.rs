@@ -295,7 +295,7 @@ impl Renderer{
         builder.end_render_pass().unwrap();
 
         let command_buffer = builder.build().unwrap();
-        self.submit_command_buffer(command_buffer, image_acquire_future, image_index);
+        self.submit_command_buffer(command_buffer, image_acquire_future, image_index, block_until_drawn);
     }
 
     pub fn build_pipeline(&self, vertex_shader:Arc<ShaderModule>, fragment_shader:Arc<ShaderModule>) -> Arc<GraphicsPipeline>{
@@ -309,7 +309,7 @@ impl Renderer{
             .build(self.device.clone()).unwrap();
     }
 
-    fn submit_command_buffer(&mut self, command_buffer:PrimaryAutoCommandBuffer, image_acquire_future:SwapchainAcquireFuture, image_index:u32){
+    fn submit_command_buffer(&mut self, command_buffer:PrimaryAutoCommandBuffer, image_acquire_future:SwapchainAcquireFuture, image_index:u32, block_until_drawn:bool){
         let future = self.previous_frame_end
             .take().unwrap()
             .join(image_acquire_future)
@@ -321,10 +321,10 @@ impl Renderer{
 
         match future {
             Ok(future) => {
-                self.previous_frame_end = Some(future.boxed());
                 if block_until_drawn {
-                    future?.wait(None);
+                    future.wait(None).unwrap();
                 }
+                self.previous_frame_end = Some(future.boxed());
             }
             Err(FlushError::OutOfDate) => {
                 self.swapchain_container.optimal = false;
