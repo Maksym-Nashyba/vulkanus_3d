@@ -221,7 +221,7 @@ impl Renderer{
         self.swapchain_container.optimal = false;
     }
 
-    pub fn submit_frame(&mut self, draw_calls:Vec<DrawCall>){
+    pub fn submit_frame(&mut self, draw_calls:Vec<DrawCall>, block_until_drawn:bool){
         let window = self.render_surface.object().unwrap().downcast_ref::<Window>().unwrap();
         let dimensions = window.inner_size();
         if dimensions.width == 0 || dimensions.height == 0 {
@@ -322,6 +322,9 @@ impl Renderer{
         match future {
             Ok(future) => {
                 self.previous_frame_end = Some(future.boxed());
+                if block_until_drawn {
+                    future?.wait(None);
+                }
             }
             Err(FlushError::OutOfDate) => {
                 self.swapchain_container.optimal = false;
