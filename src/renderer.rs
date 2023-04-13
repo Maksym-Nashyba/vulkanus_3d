@@ -35,7 +35,7 @@ use vulkano::command_buffer::PrimaryAutoCommandBuffer;
 use vulkano::device::Queue;
 use vulkano::memory::allocator::StandardMemoryAllocator;
 use vulkano::shader::ShaderModule;
-use vulkano::swapchain::{Surface, SwapchainAcquireFuture};
+use vulkano::swapchain::{PresentMode, Surface, SwapchainAcquireFuture};
 use vulkano_win::create_surface_from_winit;
 use winit::window::Window;
 use crate::renderer::draw_call::DrawCall;
@@ -70,7 +70,7 @@ pub enum ShaderType{
 
 
 impl Renderer{
-    pub fn new(window: Arc<Window>) -> Self {
+    pub fn new(window: Arc<Window>, present_immediate:bool) -> Self {
         let library = VulkanLibrary::new().unwrap();
         let required_extensions = vulkano_win::required_extensions(&library);
 
@@ -150,6 +150,7 @@ impl Renderer{
                 SwapchainCreateInfo {
                     min_image_count: surface_capabilities.min_image_count,
                     image_format: image_format,
+                    present_mode: if present_immediate{ PresentMode::Immediate }else{ PresentMode::Fifo },
                     image_extent: window.inner_size().into(),
                     image_usage: ImageUsage {
                         color_attachment: true,
