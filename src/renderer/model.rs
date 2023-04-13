@@ -66,4 +66,28 @@ impl Model {
         ];
         return Self::load(renderer, vertices);
     }
+
+    pub fn square(renderer: &Renderer, side_length:f32) -> Model{
+        let vertices = vec![
+            Vertex {
+                position: [-side_length, side_length, 0f32],
+            },
+            Vertex {
+                position: [-side_length, -side_length, 0f32],
+            },
+            Vertex {
+                position: [side_length, -side_length, 0f32],
+            },
+            Vertex {
+                position: [-side_length, side_length, 0f32],
+            },
+            Vertex {
+                position: [side_length, -side_length, 0f32],
+            },
+            Vertex {
+                position: [side_length, side_length, 0f32],
+            }
+        ];
+        return Self::load(renderer, vertices);
+    }
 }

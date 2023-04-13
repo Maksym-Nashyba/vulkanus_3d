@@ -169,19 +169,19 @@ impl Renderer{
         let shader_container: ShaderContainer = ShaderContainer::load(device.clone()).unwrap();
 
         let render_pass: Arc<RenderPass> = vulkano::single_pass_renderpass!(
-    device.clone(),
-    attachments: {
-        color: {
-            load: Clear,
-            store: Store,
-            format: swapchain.image_format(),
-            samples: 1,
-        }
-    },
-    pass: {
-        color: [color],
-        depth_stencil: {}
-    }).unwrap();
+            device.clone(),
+            attachments: {
+                color: {
+                    load: Clear,
+                    store: Store,
+                    format: swapchain.image_format(),
+                    samples: 1,
+                }
+            },
+            pass: {
+                color: [color],
+                depth_stencil: {}
+            }).unwrap();
 
         let swapchain_container: SwapchainContainer =
             SwapchainContainer{
