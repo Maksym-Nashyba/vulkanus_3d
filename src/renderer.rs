@@ -3,6 +3,7 @@ pub mod draw_call;
 pub mod model;
 
 use std::sync::Arc;
+use nalgebra_glm::Mat4x4;
 
 use vulkano::{
     buffer::TypedBufferAccess,
@@ -31,11 +32,16 @@ use vulkano::{
     sync::{self, FlushError, GpuFuture},
     VulkanLibrary,
 };
+use vulkano::buffer::{BufferUsage, CpuBufferPool};
 use vulkano::command_buffer::PrimaryAutoCommandBuffer;
+use vulkano::descriptor_set::allocator::StandardDescriptorSetAllocator;
+use vulkano::descriptor_set::{PersistentDescriptorSet, WriteDescriptorSet};
 use vulkano::device::Queue;
-use vulkano::memory::allocator::StandardMemoryAllocator;
+use vulkano::memory::allocator::{MemoryUsage, StandardMemoryAllocator};
+use vulkano::pipeline::{Pipeline, PipelineBindPoint};
 use vulkano::shader::ShaderModule;
 use vulkano::swapchain::{PresentMode, Surface, SwapchainAcquireFuture};
+use vulkano::buffer::BufferContents;
 use vulkano_win::create_surface_from_winit;
 use winit::window::Window;
 use crate::renderer::draw_call::DrawCall;
@@ -53,6 +59,8 @@ pub struct Renderer{
     viewport: Viewport,
     framebuffers: Vec<Arc<Framebuffer>>,
     command_buffer_allocator: StandardCommandBufferAllocator,
+    descriptor_set_allocator: StandardDescriptorSetAllocator,
+    uniform_buffer: CpuBufferPool<UniformData>,
     previous_frame_end: Option<Box<dyn GpuFuture>>
 }
 
@@ -68,6 +76,11 @@ pub enum ShaderType{
     Fragment
 }
 
+#[derive(BufferContents)]
+#[repr(C)]
+struct UniformData{
+    transformation: Mat4x4
+}
 
 impl Renderer{
     pub fn new(window: Arc<Window>, present_immediate:bool) -> Self {
@@ -201,7 +214,19 @@ impl Renderer{
         let command_buffer_allocator =
             StandardCommandBufferAllocator::new(device.clone(), Default::default());
 
+        let descriptor_set_allocator =
+            StandardDescriptorSetAllocator::new(device.clone());
+
         let previous_frame_end = Some(sync::now(device.clone()).boxed());
+
+        let uniform_buffer: CpuBufferPool<UniformData> = CpuBufferPool::<UniformData>::new(
+            Arc::new(StandardMemoryAllocator::new_default(device.clone())),
+            BufferUsage {
+                uniform_buffer: true,
+                ..BufferUsage::empty()
+            },
+            MemoryUsage::Upload,
+        );
 
         return Self{
             device: device.clone(),
@@ -214,6 +239,8 @@ impl Renderer{
             framebuffers: framebuffers,
             allocator:StandardMemoryAllocator::new_default(device.clone()),
             command_buffer_allocator: command_buffer_allocator,
+            descriptor_set_allocator: descriptor_set_allocator,
+            uniform_buffer: uniform_buffer,
             previous_frame_end: previous_frame_end
         }
     }
@@ -264,18 +291,29 @@ impl Renderer{
                 }
                 Err(e) => panic!("Failed to acquire next image: {:?}", e),
             };
-
         if suboptimal {
             self.swapchain_container.optimal = false;
         }
 
-        let mut builder = AutoCommandBufferBuilder::primary(
+        let mut command_buffer_builder = AutoCommandBufferBuilder::primary(
             &self.command_buffer_allocator,
             self.queue.queue_family_index(),
             CommandBufferUsage::OneTimeSubmit,
         ).unwrap();
 
-        builder
+
+        let uniform_data = UniformData{
+            transformation: Mat4x4::identity()
+        };
+        let uniform_buffer_subbuffer=  self.uniform_buffer.from_data(uniform_data).unwrap();
+
+        let uniform_descriptors = PersistentDescriptorSet::new(
+            &self.descriptor_set_allocator,
+            layout.clone(),
+            [WriteDescriptorSet::buffer(0, uniform_buffer_subbuffer)],
+        ).unwrap();
+
+        command_buffer_builder
             .begin_render_pass(
                 RenderPassBeginInfo {
                     clear_values: vec![Some([1.0, 0.0, 0.0, 1.0].into())],
@@ -284,18 +322,25 @@ impl Renderer{
                     )
                 },
                 SubpassContents::Inline,
-            )
-            .unwrap()
-            .set_viewport(0, [self.viewport.clone()]);
-        for draw_call in draw_calls {
-            builder
-                .bind_pipeline_graphics(draw_call.material.pipeline())
-                .bind_vertex_buffers(0, draw_call.model.buffer.clone())
-                .draw(draw_call.model.buffer.len() as u32, 1, 0, 0).unwrap();
-        }
-        builder.end_render_pass().unwrap();
+            ).unwrap()
+            .set_viewport(0, [self.viewport.clone()])
+            .bind_descriptor_sets(
+                PipelineBindPoint::Graphics,
+                draw_calls.first().unwrap().pipeline().layout().clone(),
+                0,
+                uniform_descriptors);
 
-        let command_buffer = builder.build().unwrap();
+            for draw_call in draw_calls {
+                command_buffer_builder
+                    .bind_pipeline_graphics(draw_call.material.pipeline())
+                    .bind_vertex_buffers(0, draw_call.model.buffer.clone())
+                    .draw(draw_call.model.buffer.len() as u32, 1, 0, 0).unwrap();
+            }
+
+        command_buffer_builder
+            .end_render_pass().unwrap();
+
+        let command_buffer = command_buffer_builder.build().unwrap();
         self.submit_command_buffer(command_buffer, image_acquire_future, image_index, block_until_drawn);
     }
 

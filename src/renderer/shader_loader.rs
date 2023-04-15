@@ -28,6 +28,20 @@ mod direct_frag {
     }
 }
 
+mod perspective_vert {
+    vulkano_shaders::shader!{
+        ty: "vertex",
+        path : "src/shaders/perspective.vert"
+    }
+}
+
+mod perspective_frag {
+    vulkano_shaders::shader!{
+        ty: "fragment",
+        path : "src/shaders/perspective.frag"
+    }
+}
+
 impl ShaderContainer{
     pub fn load(device: Arc<Device>) -> Result<ShaderContainer, ShaderCreationError>{
         let mut loaded_shaders: Vec<LoadedShader> = Vec::new();
@@ -40,6 +54,18 @@ impl ShaderContainer{
 
         loaded_shaders.push(LoadedShader{
             name:String::from("direct"),
+            shader_type:ShaderType::Fragment,
+            shader: direct_frag::load(device.clone())?
+        });
+
+        loaded_shaders.push(LoadedShader{
+            name:String::from("perspective"),
+            shader_type:ShaderType::Vertex,
+            shader: direct_vert::load(device.clone())?
+        });
+
+        loaded_shaders.push(LoadedShader{
+            name:String::from("perspective"),
             shader_type:ShaderType::Fragment,
             shader: direct_frag::load(device.clone())?
         });
